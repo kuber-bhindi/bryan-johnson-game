@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sorry Bryan Johnson</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Segoe UI,sans-serif;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+h1{color:#e94560;font-size:2.5rem;margin-bottom:10px;text-shadow:0 0 20px rgba(233,69,96,0.5)}
+.subtitle{color:#a0a0a0;font-size:1rem;margin-bottom:30px}
+.game-container{display:flex;flex-direction:column;align-items:center;gap:20px}
+.status{color:#00ff88;font-size:1.4rem;height:40px;display:flex;align-items:center;gap:10px}
+.timer{font-weight:bold;color:#ffd700;font-size:1.6rem}
+.bowls-container{display:flex;gap:20px;padding:40px;background:rgba(255,255,255,0.05);border-radius:20px;position:relative}
+.bowl-wrapper{display:flex;flex-direction:column;align-items:center;gap:10px;transition:transform .3s ease;position:relative}
+.bowl-wrapper.shuffling{transition:transform .25s ease-in-out}
+.bowl{width:100px;height:80px;background:linear-gradient(180deg,#8B4513 0%,#654321 50%,#3d2817 100%);border-radius:10px 10px 50% 50%;cursor:pointer;position:relative;transition:transform .2s,box-shadow .2s;box-shadow:0 10px 30px rgba(0,0,0,0.4)}
+.bowl::before{content:"";position:absolute;top:5px;left:10px;right:10px;height:15px;background:linear-gradient(180deg,#a0522d 0%,#8B4513 100%);border-radius:5px 5px 0 0}
+.bowl:hover:not(.disabled){transform:translateY(-5px);box-shadow:0 15px 40px rgba(233,69,96,0.3)}
+.bowl.disabled{cursor:not-allowed;opacity:0.7}
+.bowl.clickable{animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 10px 30px rgba(0,0,0,0.4)}50%{box-shadow:0 10px 40px rgba(0,255,136,0.4)}}
+.food{font-size:3rem;position:absolute;top:-50px;left:50%;transform:translateX(-50%);opacity:0;transition:opacity .3s}
+.food.visible{opacity:1}
+.bowl-number{color:#888;font-size:0.9rem}
+.play-btn{padding:15px 40px;font-size:1.2rem;background:linear-gradient(135deg,#e94560 0%,#c73e54 100%);color:white;border:none;border-radius:30px;cursor:pointer;transition:transform .2s,box-shadow .2s;box-shadow:0 5px 20px rgba(233,69,96,0.4);margin-top:20px}
+.play-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(233,69,96,0.6)}
+.play-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-overlay.visible{display:flex}
+.modal{text-align:center;animation:modalPop .5s ease}
+@keyframes modalPop{0%{transform:scale(0);opacity:0}50%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+.bryan-face{width:250px;height:250px;border-radius:50%;object-fit:cover;border:5px solid;margin-bottom:30px;box-shadow:0 0 50px rgba(255,255,255,0.3)}
+.bryan-face.winner{border-color:#00ff88;box-shadow:0 0 50px rgba(0,255,136,0.5)}
+.bryan-face.loser{border-color:#e94560;box-shadow:0 0 50px rgba(233,69,96,0.5)}
+.result-text{font-size:2rem;font-weight:bold;margin-bottom:30px;text-transform:uppercase;letter-spacing:2px}
+.result-text.winner{color:#00ff88;text-shadow:0 0 20px rgba(0,255,136,0.5)}
+.result-text.loser{color:#e94560;text-shadow:0 0 20px rgba(233,69,96,0.5)}
+.modal .play-btn{margin-top:0}
+.instructions{color:#666;font-size:0.9rem;max-width:400px;text-align:center;margin-top:20px;line-height:1.5}
+.score{position:fixed;top:20px;right:20px;color:#fff;font-size:1rem;background:rgba(255,255,255,0.1);padding:10px 20px;border-radius:10px}
+.score span{color:#00ff88;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="score">Score: <span id="wins">0</span> / <span id="total">0</span></div>
+<h1>Sorry Bryan Johnson</h1>
+<p class="subtitle">Find the healthy choice... if you can</p>
+<div class="game-container">
+<div class="status"><span id="status-text">Click Start Game to play</span><span class="timer" id="timer"></span></div>
+<div class="bowls-container" id="bowls-container"></div>
+<button class="play-btn" id="play-btn">Start Game</button>
+<p class="instructions">Watch carefully! One bowl hides a healthy salad, the others hide burgers. Track the salad during the shuffle and click the right bowl.</p>
+</div>
+<div class="modal-overlay" id="modal">
+<div class="modal">
+<img src="https://imageio.forbes.com/specials-images/imageserve/63ef653f3e6e18eb54aecee5/Bryan-Johnson/960x0.jpg?format=jpg&width=960" alt="Bryan Johnson" class="bryan-face" id="bryan-face">
+<div class="result-text" id="result-text"></div>
+<button class="play-btn" id="play-again-btn">Play Again</button>
+</div>
+</div>
+<script>
+const SALAD="\u{1F957}",BURGER="\u{1F354}";
+const bowlsContainer=document.getElementById("bowls-container"),statusText=document.getElementById("status-text"),timerEl=document.getElementById("timer"),playBtn=document.getElementById("play-btn"),modal=document.getElementById("modal"),bryanFace=document.getElementById("bryan-face"),resultText=document.getElementById("result-text"),playAgainBtn=document.getElementById("play-again-btn"),winsEl=document.getElementById("wins"),totalEl=document.getElementById("total");
+let saladIndex=0,bowlPositions=[0,1,2,3,4],gameState="idle",wins=0,total=0;
+function createBowls(){bowlsContainer.innerHTML="";saladIndex=Math.floor(Math.random()*5);bowlPositions=[0,1,2,3,4];for(let i=0;i<5;i++){const w=document.createElement("div");w.className="bowl-wrapper";w.dataset.position=i;w.dataset.originalIndex=i;const f=document.createElement("div");f.className="food";f.textContent=i===saladIndex?SALAD:BURGER;const b=document.createElement("div");b.className="bowl disabled";b.onclick=()=>handleGuess(i);const n=document.createElement("div");n.className="bowl-number";n.textContent="Bowl "+(i+1);w.appendChild(f);w.appendChild(b);w.appendChild(n);bowlsContainer.appendChild(w)}}
+function showFood(){document.querySelectorAll(".food").forEach(f=>f.classList.add("visible"))}
+function hideFood(){document.querySelectorAll(".food").forEach(f=>f.classList.remove("visible"))}
+function updateBowlPositions(){const wrappers=document.querySelectorAll(".bowl-wrapper");const bowlWidth=120;wrappers.forEach(wrapper=>{const origIdx=parseInt(wrapper.dataset.originalIndex);const position=bowlPositions[origIdx];wrapper.style.transform="translateX("+((position-origIdx)*bowlWidth)+"px)";})}
+function shuffle(){const idx1=Math.floor(Math.random()*5);let idx2=Math.floor(Math.random()*5);while(idx2===idx1)idx2=Math.floor(Math.random()*5);const bowl1=bowlPositions.indexOf(idx1);const bowl2=bowlPositions.indexOf(idx2);bowlPositions[bowl1]=idx2;bowlPositions[bowl2]=idx1;updateBowlPositions()}
+async function startGame(){playBtn.disabled=true;createBowls();gameState="showing";statusText.textContent="Memorize the salad position!";showFood();for(let i=3;i>0;i--){timerEl.textContent=i;await sleep(1000)}gameState="shuffling";hideFood();statusText.textContent="Shuffling...";document.querySelectorAll(".bowl-wrapper").forEach(w=>w.classList.add("shuffling"));const shuffleEndTime=Date.now()+7000;while(Date.now()<shuffleEndTime){timerEl.textContent=Math.ceil((shuffleEndTime-Date.now())/1000);shuffle();await sleep(280+Math.random()*100)}document.querySelectorAll(".bowl-wrapper").forEach(w=>w.classList.remove("shuffling"));gameState="guessing";statusText.textContent="Click the bowl with the salad!";timerEl.textContent="?";document.querySelectorAll(".bowl").forEach(b=>{b.classList.remove("disabled");b.classList.add("clickable")})}
+function handleGuess(originalIndex){if(gameState!=="guessing")return;gameState="idle";total++;totalEl.textContent=total;showFood();document.querySelectorAll(".bowl").forEach(b=>{b.classList.add("disabled");b.classList.remove("clickable")});const isCorrect=originalIndex===saladIndex;setTimeout(()=>{if(isCorrect){wins++;winsEl.textContent=wins;bryanFace.className="bryan-face winner";resultText.className="result-text winner";resultText.textContent="You will never die"}else{bryanFace.className="bryan-face loser";resultText.className="result-text loser";resultText.textContent="Rest in peace, son"}modal.classList.add("visible")},500)}
+function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+playBtn.onclick=startGame;
+playAgainBtn.onclick=()=>{modal.classList.remove("visible");playBtn.disabled=false;statusText.textContent="Click Start Game to play";timerEl.textContent="";createBowls()};
+createBowls();
+</script>
+</body>
+</html>
